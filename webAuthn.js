@@ -1,4 +1,4 @@
-class WebAuthN {
+class WebAuthn {
 	// Decode a base64 string into a Uint8Array.
 	static _decodeBuffer(value) {
 		return Uint8Array.from(atob(value), c => c.charCodeAt(0));
@@ -23,14 +23,14 @@ class WebAuthN {
 		return fetch('/webauthn/registration/start', {
 				method: 'POST'
 			})
-			.then(WebAuthN._checkStatus(200))
+			.then(WebAuthn._checkStatus(200))
 			.then(res => res.json())
 			.then(res => {
-				res.publicKey.challenge = WebAuthN._decodeBuffer(res.publicKey.challenge);
-				res.publicKey.user.id = WebAuthN._decodeBuffer(res.publicKey.user.id);
+				res.publicKey.challenge = WebAuthn._decodeBuffer(res.publicKey.challenge);
+				res.publicKey.user.id = WebAuthn._decodeBuffer(res.publicKey.user.id);
 				if (res.publicKey.excludeCredentials) {
 					for (var i = 0; i < res.publicKey.excludeCredentials.length; i++) {
-						res.publicKey.excludeCredentials[i].id = WebAuthN._decodeBuffer(res.publicKey.excludeCredentials[i].id);
+						res.publicKey.excludeCredentials[i].id = WebAuthn._decodeBuffer(res.publicKey.excludeCredentials[i].id);
 					}
 				}
 				return res;
@@ -45,29 +45,29 @@ class WebAuthN {
 					},
 					body: JSON.stringify({
 						id: credential.id,
-						rawId: WebAuthN._encodeBuffer(credential.rawId),
+						rawId: WebAuthn._encodeBuffer(credential.rawId),
 						response: {
-							attestationObject: WebAuthN._encodeBuffer(credential.response.attestationObject),
-							clientDataJSON: WebAuthN._encodeBuffer(credential.response.clientDataJSON)
+							attestationObject: WebAuthn._encodeBuffer(credential.response.attestationObject),
+							clientDataJSON: WebAuthn._encodeBuffer(credential.response.clientDataJSON)
 						},
 						type: credential.type
 					}),
 				})
 			})
-			.then(WebAuthN._checkStatus(201));
+			.then(WebAuthn._checkStatus(201));
 	}
 
 	login() {
 		return fetch('/webauthn/login/start', {
 				method: 'POST'
 			})
-			.then(WebAuthN._checkStatus(200))
+			.then(WebAuthn._checkStatus(200))
 			.then(res => res.json())
 			.then(res => {
-				res.publicKey.challenge = WebAuthN._decodeBuffer(res.publicKey.challenge);
+				res.publicKey.challenge = WebAuthn._decodeBuffer(res.publicKey.challenge);
 				if (res.publicKey.allowCredentials) {
 					for (let i = 0; i < res.publicKey.allowCredentials.length; i++) {
-						res.publicKey.allowCredentials[i].id = WebAuthN._decodeBuffer(res.publicKey.allowCredentials[i].id);
+						res.publicKey.allowCredentials[i].id = WebAuthn._decodeBuffer(res.publicKey.allowCredentials[i].id);
 					}
 				}
 				return res;
@@ -82,17 +82,17 @@ class WebAuthN {
 					},
 					body: JSON.stringify({
 						id: credential.id,
-						rawId: WebAuthN._encodeBuffer(credential.rawId),
+						rawId: WebAuthn._encodeBuffer(credential.rawId),
 						response: {
-							clientDataJSON: WebAuthN._encodeBuffer(credential.response.clientDataJSON),
-							authenticatorData: WebAuthN._encodeBuffer(credential.response.authenticatorData),
-							signature: WebAuthN._encodeBuffer(credential.response.signature),
-							userHandle: WebAuthN._encodeBuffer(credential.response.userHandle),
+							clientDataJSON: WebAuthn._encodeBuffer(credential.response.clientDataJSON),
+							authenticatorData: WebAuthn._encodeBuffer(credential.response.authenticatorData),
+							signature: WebAuthn._encodeBuffer(credential.response.signature),
+							userHandle: WebAuthn._encodeBuffer(credential.response.userHandle),
 						},
 						type: credential.type
 					}),
 				})
 			})
-			.then(WebAuthN._checkStatus(200));
+			.then(WebAuthn._checkStatus(200));
 	}
 }

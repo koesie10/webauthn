@@ -12,7 +12,7 @@ import (
 
 // StartRegistration is a HTTP request handler which writes the options to be passed to navigator.credentials.create()
 // to the http.ResponseWriter.
-func (w *WebAuthN) StartRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
 	chal, err := protocol.NewChallenge()
 	if err != nil {
 		w.writeError(r, rw, err)
@@ -80,7 +80,7 @@ func (w *WebAuthN) StartRegistration(r *http.Request, rw http.ResponseWriter, us
 // FinishRegistration is a HTTP request handler which should receive the response of navigator.credentials.create(). If
 // the request is valid, AuthenticatorStore.AddAuthenticator will be called and an empty response with HTTP status code
 // 201 (Created) will be written to the http.ResponseWriter.
-func (w *WebAuthN) FinishRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
 	rawChal, err := session.Get(w.Config.SessionKeyPrefixChallenge + ".register")
 	if err != nil {
 		w.writeErrorCode(r, rw, http.StatusBadRequest, err)

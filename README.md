@@ -2,7 +2,7 @@
 
 ## Overview [![GoDoc](https://godoc.org/github.com/koesie10/webauthn?status.svg)](https://godoc.org/github.com/koesie10/webauthn) [![Build Status](https://travis-ci.org/koesie10/webauthn.svg?branch=master)](https://travis-ci.org/koesie10/webauthn)
 
-This project provides a low-level and a high-level API to use the [Web Authentication API](https://www.w3.org/TR/webauthn/) (WebAuthN).
+This project provides a low-level and a high-level API to use the [Web Authentication API](https://www.w3.org/TR/webauthn/) (WebAuthn).
 
 [Demo](https://github.com/koesie10/webauthn-demo)
 
@@ -24,7 +24,7 @@ registers.
 Then, either make your existing repository implement [`AuthenticatorStore`](https://godoc.org/github.com/koesie10/webauthn/webauthn#AuthenticatorStore)
 or create a new repository.
 
-Finally, you can create the main [`WebAuthN`](https://godoc.org/github.com/koesie10/webauthn/webauthn#WebAuthN) struct supplying the
+Finally, you can create the main [`WebAuthn`](https://godoc.org/github.com/koesie10/webauthn/webauthn#WebAuthn) struct supplying the
 [`Config`](https://godoc.org/github.com/koesie10/webauthn/webauthn#Config) options:
 
 ```golang
@@ -36,7 +36,7 @@ w, err := webauthn.New(&webauthn.Config{
 })		
 ```
 
-Then, you can use the methods defined, such as [`StartRegistration`](https://godoc.org/github.com/koesie10/webauthn/webauthn#WebAuthN.StartRegistration)
+Then, you can use the methods defined, such as [`StartRegistration`](https://godoc.org/github.com/koesie10/webauthn/webauthn#WebAuthn.StartRegistration)
 to handle registration and login. Every handler requires a [`Session`](https://godoc.org/github.com/koesie10/webauthn/webauthn#Session), which stores
 intermediate registration/login data. If you use [`gorilla/sessions`](https://github.com/gorilla/sessions), use
 [`webauthn.WrapMap`](https://godoc.org/github.com/koesie10/webauthn/webauthn#WrapMap)`(session.Values)`. Read the documentation for complete information
@@ -67,7 +67,7 @@ A complete demo application using the high-level API which implements all of the
 [This class](webauthn.js) is an example that can be used to handle the registration and login phases. It can be used as follows:
 
 ```javascript
-const w = new WebAuthN();
+const w = new WebAuthn();
 
 // Registration
 w.register().then(() => {

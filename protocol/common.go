@@ -233,7 +233,7 @@ func (f AuthenticatorDataFlags) HasExtensions() bool {
 	return (f & AuthenticatorDataFlagHasExtension) == AuthenticatorDataFlagHasExtension
 }
 
-// AttestedCredentialData represents the AttestedCredentialData type in the WebAuthN specification.
+// AttestedCredentialData represents the AttestedCredentialData type in the WebAuthn specification.
 // https://www.w3.org/TR/webauthn/#attested-credential-data
 type AttestedCredentialData struct {
 	// The AAGUID of the authenticator.

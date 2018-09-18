@@ -5,7 +5,7 @@ import "fmt"
 var defaultSessionKeyPrefixChallenge = "webauthn.challenge"
 var defaultSessionKeyPrefixUserID = "webauthn.user.id"
 
-// Config holds all the configuration for WebAuthN
+// Config holds all the configuration for WebAuthn
 type Config struct {
 	// RelyingPartyName is a human-palatable identifier for the Relying Party, intended only for display. For example,
 	// "ACME Corporation", "Wonderful Widgets, Inc." or "ОАО Примертех".

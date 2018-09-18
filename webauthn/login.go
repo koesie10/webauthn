@@ -14,7 +14,7 @@ import (
 // StartLogin is a HTTP request handler which writes the options to be passed to navigator.credentials.get()
 // to the http.ResponseWriter. The user argument is optional and can be nil, in which case the allowCredentials
 // option will not be set and AuthenticatorStore.GetAuthenticators will not be called.
-func (w *WebAuthN) StartLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+func (w *WebAuthn) StartLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) {
 	chal, err := protocol.NewChallenge()
 	if err != nil {
 		w.writeError(r, rw, err)
@@ -59,7 +59,7 @@ func (w *WebAuthN) StartLogin(r *http.Request, rw http.ResponseWriter, user User
 // user is non-nil, it will be checked that the authenticator is owned by that user. If the request is valid,
 // the authenticator will be returned and nothing will have been written to http.ResponseWriter. If authenticator is
 // nil, an error has been written to http.ResponseWriter and should be returned as-is.
-func (w *WebAuthN) FinishLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
+func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
 	rawChal, err := session.Get(w.Config.SessionKeyPrefixChallenge + ".login")
 	if err != nil {
 		w.writeErrorCode(r, rw, http.StatusBadRequest, err)

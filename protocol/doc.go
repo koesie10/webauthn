@@ -1,4 +1,4 @@
-// protocol is a low-level package that closely resembles the WebAuthN specification. You should prefer to use the
+// protocol is a low-level package that closely resembles the WebAuthn specification. You should prefer to use the
 // webauthn package. The main methods in this package are ParseAttestationResponse, ParseAssertionResponse,
 // IsValidAssertion and IsValidAttestation.
 //

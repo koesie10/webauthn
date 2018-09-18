@@ -70,9 +70,9 @@ type Error struct {
 	Debug string `json:"debug,omitempty"`
 }
 
-// ToWebAuthNError converts any error into the *Error type. If that is not possible, it will return an *Error
+// ToWebAuthnError converts any error into the *Error type. If that is not possible, it will return an *Error
 // which wraps the error.
-func ToWebAuthNError(err error) *Error {
+func ToWebAuthnError(err error) *Error {
 	if e, ok := err.(*Error); ok {
 		return e
 	} else if e, ok := errors.Cause(err).(*Error); ok {
