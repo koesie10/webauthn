@@ -6,7 +6,7 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"go.vasystem.org/services/accounts/webauthn/protocol"
+	"github.com/koesie10/webauthn/protocol"
 )
 
 func TestIsValidAttestation(t *testing.T) {
