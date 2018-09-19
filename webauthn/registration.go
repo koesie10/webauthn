@@ -130,7 +130,7 @@ func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, u
 		return
 	}
 
-	valid, err := protocol.IsValidAttestation(p, chal, w.Config.RelyingPartyOrigin)
+	valid, err := protocol.IsValidAttestation(p, chal, w.Config.RelyingPartyID, w.Config.RelyingPartyOrigin)
 	if err != nil {
 		w.writeError(r, rw, err)
 		return

@@ -96,9 +96,10 @@ func ParseAttestationResponse(p AttestationResponse) (ParsedAttestationResponse,
 }
 
 // IsValidAttestation may be used to check whether an attestation is valid. If originalChallenge is nil, the challenge value
-// will not be checked (INSECURE). If relyingPartyOrigin is empty, the relying party will not be checked (INSEUCRE).
+// will not be checked (INSECURE). If relyingPartyID is empty, the relying party ID hash will not be checked (INSECURE). If
+// relyingPartyOrigin is empty, the relying party origin will not be checked (INSEUCRE).
 // If the data is invalid, an error is returned, usually of the type Error.
-func IsValidAttestation(p ParsedAttestationResponse, originalChallenge []byte, relyingPartyOrigin string) (bool, error) {
+func IsValidAttestation(p ParsedAttestationResponse, originalChallenge []byte, relyingPartyID, relyingPartyOrigin string) (bool, error) {
 	// Check the client data, i.e. steps 3-6
 	if err := p.Response.ClientData.IsValid("webauthn.create", originalChallenge, relyingPartyOrigin); err != nil {
 		return false, err
@@ -108,19 +109,19 @@ func IsValidAttestation(p ParsedAttestationResponse, originalChallenge []byte, r
 	clientDataHash := sha256.Sum256(p.RawResponse.Response.ClientDataJSON)
 
 	// Check the attestation, i.e. steps 9-14
-	if err := p.Response.Attestation.IsValid(relyingPartyOrigin, clientDataHash[:]); err != nil {
+	if err := p.Response.Attestation.IsValid(relyingPartyID, clientDataHash[:]); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-// IsValid checks whether the Attestation is valid. If relyingPartyOrigin is empty, the relying party will not be
+// IsValid checks whether the Attestation is valid. If relyingPartyID is empty, the relying party ID hash will not be
 // checked (INSEUCRE). To register a new attestation type, use RegisterFormat. If the data is invalid, an error is
 // returned, usually of the type Error.
-func (a Attestation) IsValid(relyingPartyOrigin string, clientDataHash []byte) error {
+func (a Attestation) IsValid(relyingPartyID string, clientDataHash []byte) error {
 	// Check the auth data, i.e. steps 9-11
-	if err := a.AuthData.IsValid(relyingPartyOrigin); err != nil {
+	if err := a.AuthData.IsValid(relyingPartyID); err != nil {
 		return err
 	}
 

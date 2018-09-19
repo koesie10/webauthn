@@ -25,7 +25,7 @@ func TestIsValidAttestation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d, err := protocol.IsValidAttestation(p, r.PublicKey.Challenge, "")
+	d, err := protocol.IsValidAttestation(p, r.PublicKey.Challenge, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestIsValidAssertion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d, err := protocol.IsValidAssertion(p, r.PublicKey.Challenge, "", cert)
+	d, err := protocol.IsValidAssertion(p, r.PublicKey.Challenge, "", "", cert)
 	if err != nil {
 		t.Fatal(err)
 	}

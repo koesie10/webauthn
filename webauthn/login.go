@@ -163,7 +163,7 @@ func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user Use
 		return nil
 	}
 
-	valid, err := protocol.IsValidAssertion(p, chal, w.Config.RelyingPartyOrigin, &x509.Certificate{
+	valid, err := protocol.IsValidAssertion(p, chal, w.Config.RelyingPartyID, w.Config.RelyingPartyOrigin, &x509.Certificate{
 		PublicKey: cert,
 	})
 	if err != nil {

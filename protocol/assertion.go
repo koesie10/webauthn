@@ -78,21 +78,22 @@ func ParseAssertionResponse(p AssertionResponse) (ParsedAssertionResponse, error
 }
 
 // IsValidAssertion may be used to check whether an assertion is valid. If originalChallenge is nil, the challenge value
-// will not be checked (INSECURE). If relyingPartyOrigin is empty, the relying party will not be checked (INSEUCRE).
+// will not be checked (INSECURE). If relyingPartyID is empty, the relying party hash will not be checked (INSECURE). If
+// relyingPartyOrigin is empty, the relying party origin will not be checked (INSEUCRE).
 // If cert is nil, the hash will not be checked (INSECURE). Before calling this method, clients should execute the
 // following steps: If the allowCredentials option was given when this authentication ceremony was initiated, verify that
 // credential.id identifies one of the public key credentials that were listed in allowCredentials; If
 // credential.response.userHandle is present, verify that the user identified by this value is the owner of the public
 // key credential identified by credential.id. If the data is invalid, an error is returned, usually of the type
 // Error.
-func IsValidAssertion(p ParsedAssertionResponse, originalChallenge []byte, relyingPartyOrigin string, cert *x509.Certificate) (bool, error) {
+func IsValidAssertion(p ParsedAssertionResponse, originalChallenge []byte, relyingPartyID, relyingPartyOrigin string, cert *x509.Certificate) (bool, error) {
 	// Check the client data, i.e. steps 7-10
 	if err := p.Response.ClientData.IsValid("webauthn.get", originalChallenge, relyingPartyOrigin); err != nil {
 		return false, err
 	}
 
 	// Check the auth data, i.e. steps 10-13
-	if err := p.Response.AuthData.IsValid(relyingPartyOrigin); err != nil {
+	if err := p.Response.AuthData.IsValid(relyingPartyID); err != nil {
 		return false, err
 	}
 

@@ -17,10 +17,13 @@ type Config struct {
 	// a registrable domain suffix or is equal to the caller's effective domain.
 	// For example, given a Relying Party whose origin is https://login.example.com:1337, then the following RP IDs
 	// are valid: login.example.com (default) and example.com, but not m.login.example.com and not com.
+	// In production, this value should be set. If it is not set, the implementation is INSECURE and the RP ID hash
+	// supplied by the authenticator will not be checked.
 	RelyingPartyID string
-	// RelyingPartyOrigin is the RP ID that an authenticator response will be compared with. If it is empty,
-	// the value will be ignored. However, this is INSECURE and should not be used in production. If RelyingPartyID is
-	// set, it is not necessary to set this value.
+	// RelyingPartyOrigin is the RP origin that an authenticator response will be compared with. If it is empty,
+	// the value will be ignored. However, this is INSECURE and should not be used in production.
+	// For example, given a Relying Party whose origin is https://login.example.com:1337, this value should be set
+	// to "https://login.example.com:1337".
 	RelyingPartyOrigin string
 
 	// AuthenticatorStore will be used to store authenticators of a user.
@@ -59,9 +62,6 @@ func (c *Config) Validate() error {
 	}
 	if c.Timeout == 0 {
 		c.Timeout = 30000
-	}
-	if c.RelyingPartyOrigin == "" && c.RelyingPartyID != "" {
-		c.RelyingPartyOrigin = c.RelyingPartyID
 	}
 
 	return nil

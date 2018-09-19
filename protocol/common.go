@@ -148,12 +148,12 @@ type AuthenticatorData struct {
 	AttestedCredentialData AttestedCredentialData
 }
 
-// IsValid checks whether the AuthenticatorData is valid. If relyingPartyOrigin is empty, the relying party will not be
+// IsValid checks whether the AuthenticatorData is valid. If relyingPartyID is empty, the relying party will not be
 // checked (INSEUCRE). If the data is invalid, an error is returned, usually of the type Error.
-func (a AuthenticatorData) IsValid(relyingPartyOrigin string) error {
+func (a AuthenticatorData) IsValid(relyingPartyID string) error {
 	// Verify that the RP ID hash in authData is indeed the SHA-256 hash of the RP ID expected by the RP
-	rpHash := sha256.Sum256([]byte(relyingPartyOrigin))
-	if relyingPartyOrigin != "" && !bytes.Equal(rpHash[:], a.RPIDHash) {
+	rpHash := sha256.Sum256([]byte(relyingPartyID))
+	if relyingPartyID != "" && !bytes.Equal(rpHash[:], a.RPIDHash) {
 		return ErrInvalidOrigin.WithDebugf("hash %X did not match required %X", a.RPIDHash, rpHash[:])
 	}
 
