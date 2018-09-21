@@ -146,6 +146,8 @@ type AuthenticatorData struct {
 	// attested credential data (if present). See §6.4.1 Attested credential data for details. Its length depends on the
 	// length of the credential ID and credential public key being attested.
 	AttestedCredentialData AttestedCredentialData
+	// Raw contains the raw bytes of this AuthenticatorData.
+	Raw []byte
 }
 
 // IsValid checks whether the AuthenticatorData is valid. If relyingPartyID is empty, the relying party will not be
@@ -190,6 +192,8 @@ func (a *AuthenticatorData) UnmarshalBinary(authData []byte) error {
 			return ErrInvalidRequest.WithDebugf("unable to parse COSE key: %v", err.Error())
 		}
 	}
+
+	a.Raw = authData
 
 	return nil
 }
