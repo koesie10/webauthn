@@ -79,41 +79,42 @@ func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, us
 
 // FinishRegistration is a HTTP request handler which should receive the response of navigator.credentials.create(). If
 // the request is valid, AuthenticatorStore.AddAuthenticator will be called and an empty response with HTTP status code
-// 201 (Created) will be written to the http.ResponseWriter.
-func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+// 201 (Created) will be written to the http.ResponseWriter. If authenticator is  nil, an error has been written to
+// http.ResponseWriter and should be returned as-is.
+func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
 	rawChal, err := session.Get(w.Config.SessionKeyPrefixChallenge + ".register")
 	if err != nil {
 		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return
+		return nil
 	}
 	chal, ok := rawChal.([]byte)
 	if !ok {
 		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid challenge session value"))
-		return
+		return nil
 	}
 	if err := session.Delete(w.Config.SessionKeyPrefixChallenge + ".register"); err != nil {
 		w.writeError(r, rw, err)
-		return
+		return nil
 	}
 
 	rawUserID, err := session.Get(w.Config.SessionKeyPrefixUserID + ".register")
 	if err != nil {
 		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return
+		return nil
 	}
 	userID, ok := rawUserID.([]byte)
 	if !ok {
 		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid user ID session value"))
-		return
+		return nil
 	}
 	if err := session.Delete(w.Config.SessionKeyPrefixUserID + ".register"); err != nil {
 		w.writeError(r, rw, err)
-		return
+		return nil
 	}
 
 	if !bytes.Equal(user.WebAuthID(), userID) {
 		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("user has changed since start of registration"))
-		return
+		return nil
 	}
 
 	var attestationResponse protocol.AttestationResponse
@@ -121,30 +122,30 @@ func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, u
 	d.DisallowUnknownFields()
 	if err := d.Decode(&attestationResponse); err != nil {
 		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug(err.Error()))
-		return
+		return nil
 	}
 
 	p, err := protocol.ParseAttestationResponse(attestationResponse)
 	if err != nil {
 		w.writeError(r, rw, err)
-		return
+		return nil
 	}
 
 	valid, err := protocol.IsValidAttestation(p, chal, w.Config.RelyingPartyID, w.Config.RelyingPartyOrigin)
 	if err != nil {
 		w.writeError(r, rw, err)
-		return
+		return nil
 	}
 
 	if !valid {
 		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid registration"))
-		return
+		return nil
 	}
 
 	data, err := x509.MarshalPKIXPublicKey(p.Response.Attestation.AuthData.AttestedCredentialData.COSEKey)
 	if err != nil {
 		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return
+		return nil
 	}
 
 	authr := &defaultAuthenticator{
@@ -160,8 +161,10 @@ func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, u
 
 	if err := w.Config.AuthenticatorStore.AddAuthenticator(user, authr); err != nil {
 		w.writeError(r, rw, err)
-		return
+		return nil
 	}
 
 	rw.WriteHeader(http.StatusCreated)
+
+	return authr
 }
