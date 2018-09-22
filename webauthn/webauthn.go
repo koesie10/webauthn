@@ -61,14 +61,14 @@ func (w *WebAuthn) writeErrorCode(r *http.Request, rw http.ResponseWriter, code 
 		code = http.StatusInternalServerError
 	}
 
+	if !w.Config.Debug {
+		e.Debug = ""
+	}
+
 	js, err := json.Marshal(e)
 	if err != nil {
 		w.writeError(r, rw, err)
 		return
-	}
-
-	if !w.Config.Debug {
-		e.Debug = ""
 	}
 
 	rw.Header().Set("Content-Type", "application/json")
