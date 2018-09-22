@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/x509"
 )
 
@@ -51,7 +52,7 @@ func verifyFIDO(a Attestation, clientDataHash []byte) error {
 		return ErrInvalidAttestation.WithDebug("x5c public key algorithm is invalid")
 	}
 
-	if cert.SignatureAlgorithm != x509.ECDSAWithSHA256 {
+	if cert.PublicKey.(*ecdsa.PublicKey).Curve != elliptic.P256() {
 		return ErrInvalidAttestation.WithDebug("x5c signature algorithm is invalid")
 	}
 
