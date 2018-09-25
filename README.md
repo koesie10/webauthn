@@ -14,7 +14,7 @@ go get github.com/koesie10/webauthn
 
 ## High-level API
 
-The high-level API can be used with the `net/http` package and simplifies the low-level API. It is located in the `webauthn` subpackage. It is indended
+The high-level API can be used with the `net/http` package and simplifies the low-level API. It is located in the `webauthn` subpackage. It is intended
 for use with e.g. `fetch` or `XMLHttpRequest` JavaScript clients.
 
 First, make sure your user entity implements [`User`](https://godoc.org/github.com/koesie10/webauthn/webauthn#User). Then, create a new entity
