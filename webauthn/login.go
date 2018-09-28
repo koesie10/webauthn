@@ -11,17 +11,15 @@ import (
 	"github.com/koesie10/webauthn/protocol"
 )
 
-// StartLogin is a HTTP request handler which writes the options to be passed to navigator.credentials.get()
-// to the http.ResponseWriter. The user argument is optional and can be nil, in which case the allowCredentials
-// option will not be set and AuthenticatorStore.GetAuthenticators will not be called.
-func (w *WebAuthn) StartLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+// GetLoginOptions will return the options that need to be passed to navigator.credentials.get(). This should
+// be returned to the user via e.g. JSON over HTTP. For convenience, use StartLogin.
+func (w *WebAuthn) GetLoginOptions(user User, session Session) (*protocol.CredentialRequestOptions, error) {
 	chal, err := protocol.NewChallenge()
 	if err != nil {
-		w.writeError(r, rw, err)
-		return
+		return nil, err
 	}
 
-	options := protocol.CredentialRequestOptions{
+	options := &protocol.CredentialRequestOptions{
 		PublicKey: protocol.PublicKeyCredentialRequestOptions{
 			Challenge: chal,
 			Timeout:   w.Config.Timeout,
@@ -31,8 +29,7 @@ func (w *WebAuthn) StartLogin(r *http.Request, rw http.ResponseWriter, user User
 	if user != nil {
 		authenticators, err := w.Config.AuthenticatorStore.GetAuthenticators(user)
 		if err != nil {
-			w.writeError(r, rw, err)
-			return
+			return nil, err
 		}
 
 		allowCredentials := make([]protocol.PublicKeyCredentialDescriptor, len(authenticators))
@@ -48,6 +45,18 @@ func (w *WebAuthn) StartLogin(r *http.Request, rw http.ResponseWriter, user User
 	}
 
 	if err := session.Set(w.Config.SessionKeyPrefixChallenge+".login", []byte(chal)); err != nil {
+		return nil, err
+	}
+
+	return options, nil
+}
+
+// StartLogin is a HTTP request handler which writes the options to be passed to navigator.credentials.get()
+// to the http.ResponseWriter. The user argument is optional and can be nil, in which case the allowCredentials
+// option will not be set and AuthenticatorStore.GetAuthenticators will not be called.
+func (w *WebAuthn) StartLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+	options, err := w.GetLoginOptions(user, session)
+	if err != nil {
 		w.writeError(r, rw, err)
 		return
 	}
@@ -55,40 +64,26 @@ func (w *WebAuthn) StartLogin(r *http.Request, rw http.ResponseWriter, user User
 	w.write(r, rw, options)
 }
 
-// FinishLogin is a HTTP request handler which should receive the response of navigator.credentials.get(). If
+// ParseAndFinishLogin should receive the response of navigator.credentials.get(). If
 // user is non-nil, it will be checked that the authenticator is owned by that user. If the request is valid,
-// the authenticator will be returned and nothing will have been written to http.ResponseWriter. If authenticator is
-// nil, an error has been written to http.ResponseWriter and should be returned as-is.
-func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
+// the authenticator will be returned. For convenience, use FinishLogin.
+func (w *WebAuthn) ParseAndFinishLogin(assertionResponse protocol.AssertionResponse, user User, session Session) (Authenticator, error) {
 	rawChal, err := session.Get(w.Config.SessionKeyPrefixChallenge + ".login")
 	if err != nil {
-		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("missing challenge in session")
 	}
 	chal, ok := rawChal.([]byte)
 	if !ok {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid challenge session value"))
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("invalid challenge session value")
 	}
 
 	if err := session.Delete(w.Config.SessionKeyPrefixChallenge + ".login"); err != nil {
-		w.writeError(r, rw, err)
-		return nil
-	}
-
-	var assertionResponse protocol.AssertionResponse
-
-	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
-	if err := d.Decode(&assertionResponse); err != nil {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug(err.Error()))
-		return nil
+		return nil, err
 	}
 
 	p, err := protocol.ParseAssertionResponse(assertionResponse)
 	if err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	// 1. If the allowCredentials option was given when this authentication ceremony was initiated, verify that
@@ -96,8 +91,7 @@ func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user Use
 	if user != nil {
 		authenticators, err := w.Config.AuthenticatorStore.GetAuthenticators(user)
 		if err != nil {
-			w.writeError(r, rw, err)
-			return nil
+			return nil, err
 		}
 
 		var authrFound bool
@@ -109,7 +103,7 @@ func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user Use
 		}
 
 		if !authrFound {
-			w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("authenticator is not owned by user"))
+			return nil, protocol.ErrInvalidRequest.WithDebug("authenticator is not owned by user")
 		}
 	}
 
@@ -118,14 +112,12 @@ func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user Use
 	if p.Response.UserHandle != nil && len(p.Response.UserHandle) > 0 {
 		if user != nil {
 			if !bytes.Equal(p.Response.UserHandle, user.WebAuthID()) {
-				w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("authenticator's user handle does not equal user ID"))
-				return nil
+				return nil, protocol.ErrInvalidRequest.WithDebug("authenticator's user handle does not equal user ID")
 			}
 		} else {
 			authenticators, err := w.Config.AuthenticatorStore.GetAuthenticators(&defaultUser{id: p.Response.UserHandle})
 			if err != nil {
-				w.writeError(r, rw, err)
-				return nil
+				return nil, err
 			}
 
 			var authrFound bool
@@ -137,8 +129,7 @@ func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user Use
 			}
 
 			if !authrFound {
-				w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("authenticator is not owned by user"))
-				return nil
+				return nil, protocol.ErrInvalidRequest.WithDebug("authenticator is not owned by user")
 			}
 		}
 	}
@@ -147,32 +138,50 @@ func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user Use
 	// case), look up the corresponding credential public key.
 	authr, err := w.Config.AuthenticatorStore.GetAuthenticator(p.RawID)
 	if err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	block, _ := pem.Decode(authr.WebAuthPublicKey())
 	if block == nil {
-		w.writeError(r, rw, fmt.Errorf("invalid stored public key, unable to decode"))
-		return nil
+		return nil, fmt.Errorf("invalid stored public key, unable to decode")
 	}
 
 	cert, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	valid, err := protocol.IsValidAssertion(p, chal, w.Config.RelyingPartyID, w.Config.RelyingPartyOrigin, &x509.Certificate{
 		PublicKey: cert,
 	})
 	if err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	if !valid {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid login"))
+		return nil, protocol.ErrInvalidRequest.WithDebug("invalid login")
+	}
+
+	return authr, nil
+}
+
+// FinishLogin is a HTTP request handler which should receive the response of navigator.credentials.get(). If
+// user is non-nil, it will be checked that the authenticator is owned by that user. If the request is valid,
+// the authenticator will be returned and nothing will have been written to http.ResponseWriter. If authenticator is
+// nil, an error has been written to http.ResponseWriter and should be returned as-is.
+func (w *WebAuthn) FinishLogin(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
+	var assertionResponse protocol.AssertionResponse
+
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&assertionResponse); err != nil {
+		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug(err.Error()))
+		return nil
+	}
+
+	authr, err := w.ParseAndFinishLogin(assertionResponse, user, session)
+	if err != nil {
+		w.writeError(r, rw, err)
 		return nil
 	}
 

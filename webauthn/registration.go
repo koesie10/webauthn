@@ -10,13 +10,12 @@ import (
 	"github.com/koesie10/webauthn/protocol"
 )
 
-// StartRegistration is a HTTP request handler which writes the options to be passed to navigator.credentials.create()
-// to the http.ResponseWriter.
-func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+// GetRegistrationOptions will return the options that need to be passed to navigator.credentials.create(). This should
+// be returned to the user via e.g. JSON over HTTP. For convenience, use StartRegistration.
+func (w *WebAuthn) GetRegistrationOptions(user User, session Session) (*protocol.CredentialCreationOptions, error) {
 	chal, err := protocol.NewChallenge()
 	if err != nil {
-		w.writeError(r, rw, err)
-		return
+		return nil, err
 	}
 
 	u := protocol.PublicKeyCredentialUserEntity{
@@ -27,7 +26,7 @@ func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, us
 		DisplayName: user.WebAuthDisplayName(),
 	}
 
-	options := protocol.CredentialCreationOptions{
+	options := &protocol.CredentialCreationOptions{
 		PublicKey: protocol.PublicKeyCredentialCreationOptions{
 			Challenge: chal,
 			RP: protocol.PublicKeyCredentialRpEntity{
@@ -50,8 +49,7 @@ func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, us
 
 	authenticators, err := w.Config.AuthenticatorStore.GetAuthenticators(user)
 	if err != nil {
-		w.writeError(r, rw, err)
-		return
+		return nil, err
 	}
 
 	excludeCredentials := make([]protocol.PublicKeyCredentialDescriptor, len(authenticators))
@@ -66,10 +64,20 @@ func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, us
 	options.PublicKey.ExcludeCredentials = excludeCredentials
 
 	if err := session.Set(w.Config.SessionKeyPrefixChallenge+".register", []byte(chal)); err != nil {
-		w.writeError(r, rw, err)
-		return
+		return nil, err
 	}
 	if err := session.Set(w.Config.SessionKeyPrefixUserID+".register", u.ID); err != nil {
+		return nil, err
+	}
+
+	return options, nil
+}
+
+// StartRegistration is a HTTP request handler which writes the options to be passed to navigator.credentials.create()
+// to the http.ResponseWriter.
+func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) {
+	options, err := w.GetRegistrationOptions(user, session)
+	if err != nil {
 		w.writeError(r, rw, err)
 		return
 	}
@@ -77,75 +85,55 @@ func (w *WebAuthn) StartRegistration(r *http.Request, rw http.ResponseWriter, us
 	w.write(r, rw, options)
 }
 
-// FinishRegistration is a HTTP request handler which should receive the response of navigator.credentials.create(). If
-// the request is valid, AuthenticatorStore.AddAuthenticator will be called and an empty response with HTTP status code
-// 201 (Created) will be written to the http.ResponseWriter. If authenticator is  nil, an error has been written to
-// http.ResponseWriter and should be returned as-is.
-func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
+// ParseAndFinishRegistration should receive the response of navigator.credentials.create(). If
+// the request is valid, AuthenticatorStore.AddAuthenticator will be called and the authenticator that was registered
+// will be returned. For convenience, use FinishRegistration.
+func (w *WebAuthn) ParseAndFinishRegistration(attestationResponse protocol.AttestationResponse, user User, session Session) (Authenticator, error) {
 	rawChal, err := session.Get(w.Config.SessionKeyPrefixChallenge + ".register")
 	if err != nil {
-		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("missing challenge in session")
 	}
 	chal, ok := rawChal.([]byte)
 	if !ok {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid challenge session value"))
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("invalid challenge session value")
 	}
 	if err := session.Delete(w.Config.SessionKeyPrefixChallenge + ".register"); err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	rawUserID, err := session.Get(w.Config.SessionKeyPrefixUserID + ".register")
 	if err != nil {
-		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("missing user ID in session")
 	}
 	userID, ok := rawUserID.([]byte)
 	if !ok {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid user ID session value"))
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("invalid user ID session value")
 	}
 	if err := session.Delete(w.Config.SessionKeyPrefixUserID + ".register"); err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	if !bytes.Equal(user.WebAuthID(), userID) {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("user has changed since start of registration"))
-		return nil
-	}
-
-	var attestationResponse protocol.AttestationResponse
-	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
-	if err := d.Decode(&attestationResponse); err != nil {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug(err.Error()))
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("user has changed since start of registration")
 	}
 
 	p, err := protocol.ParseAttestationResponse(attestationResponse)
 	if err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	valid, err := protocol.IsValidAttestation(p, chal, w.Config.RelyingPartyID, w.Config.RelyingPartyOrigin)
 	if err != nil {
-		w.writeError(r, rw, err)
-		return nil
+		return nil, err
 	}
 
 	if !valid {
-		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug("invalid registration"))
-		return nil
+		return nil, protocol.ErrInvalidRequest.WithDebug("invalid registration")
 	}
 
 	data, err := x509.MarshalPKIXPublicKey(p.Response.Attestation.AuthData.AttestedCredentialData.COSEKey)
 	if err != nil {
-		w.writeErrorCode(r, rw, http.StatusBadRequest, err)
-		return nil
+		return nil, err
 	}
 
 	authr := &defaultAuthenticator{
@@ -160,6 +148,27 @@ func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, u
 	}
 
 	if err := w.Config.AuthenticatorStore.AddAuthenticator(user, authr); err != nil {
+		return nil, err
+	}
+
+	return authr, nil
+}
+
+// FinishRegistration is a HTTP request handler which should receive the response of navigator.credentials.create(). If
+// the request is valid, AuthenticatorStore.AddAuthenticator will be called and an empty response with HTTP status code
+// 201 (Created) will be written to the http.ResponseWriter. If authenticator is  nil, an error has been written to
+// http.ResponseWriter and should be returned as-is.
+func (w *WebAuthn) FinishRegistration(r *http.Request, rw http.ResponseWriter, user User, session Session) Authenticator {
+	var attestationResponse protocol.AttestationResponse
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&attestationResponse); err != nil {
+		w.writeError(r, rw, protocol.ErrInvalidRequest.WithDebug(err.Error()))
+		return nil
+	}
+
+	authr, err := w.ParseAndFinishRegistration(attestationResponse, user, session)
+	if err != nil {
 		w.writeError(r, rw, err)
 		return nil
 	}
