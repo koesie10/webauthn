@@ -2,3 +2,7 @@ github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/ugorji/go/codec v0.0.0-20180918125716-ed9a3b5f078b h1:pvvReAGi9NbL0Z7RgD5a7GFc3WAW0oE9q57MfVKlstw=
 github.com/ugorji/go/codec v0.0.0-20180918125716-ed9a3b5f078b/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
+golang.org/x/crypto v0.0.0-20181024171144-74cb1d3d52f4 h1:4v3KN0hcTEAkyusBypx0RrpPAhKsTP3YXj10LonM8J8=
+golang.org/x/crypto v0.0.0-20181024171144-74cb1d3d52f4/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+gopkg.in/square/go-jose.v2 v2.1.9 h1:YCFbL5T2gbmC2sMG12s1x2PAlTK5TZNte3hjZEIcCAg=
+gopkg.in/square/go-jose.v2 v2.1.9/go.mod h1:M9dMgbHiYLoDGQrXy7OpJDJWiKiU//h+vD76mk0e1AI=
