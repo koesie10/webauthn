@@ -97,7 +97,7 @@ func IsValidAssertion(p ParsedAssertionResponse, originalChallenge []byte, relyi
 		return false, err
 	}
 
-	if cert == nil {
+	if cert != nil {
 		// 15. Let hash be the result of computing a hash over the cData using SHA-256.
 		clientDataHash := sha256.Sum256(p.RawResponse.Response.ClientDataJSON)
 
