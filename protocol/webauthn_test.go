@@ -53,13 +53,10 @@ func TestIsValidAssertion(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			data, err := x509.MarshalPKIXPublicKey(attestation.Response.Attestation.AuthData.AttestedCredentialData.COSEKey)
-			if err != nil {
-				t.Fatal(err)
-			}
+			publicKey := attestation.Response.Attestation.AuthData.AttestedCredentialData.COSEKey
 
 			cert := &x509.Certificate{
-				PublicKey: data,
+				PublicKey: publicKey,
 			}
 
 			r := protocol.CredentialCreationOptions{}
