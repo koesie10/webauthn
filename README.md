@@ -53,9 +53,9 @@ func (r *http.Request, rw http.ResponseWriter) {
 		return
 	}
 
-	sess := SessionFromContext(c)
+	sess := SessionFromContext(ctx)
 
-	h.webauthn.FinishRegistration(c.Request(), c.Response(), user, webauthn.WrapMap(sess))
+	h.webauthn.FinishRegistration(ctx.Request(), ctx.Response(), user, webauthn.WrapMap(sess))
 }
 ```
 
