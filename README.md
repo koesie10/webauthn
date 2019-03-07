@@ -47,15 +47,18 @@ For example, a handler for finish registration might look like this:
 ```golang
 func (r *http.Request, rw http.ResponseWriter) {
 	ctx := r.Context()
+	// Get the user in some way, in this case from the context
 	user, ok := UserFromContext(ctx)
 	if !ok {
 		rw.WriteHeader(http.StatusForbidden)
 		return
 	}
 
+	// Get or create a session in some way, in this case from the context
 	sess := SessionFromContext(ctx)
 
-	h.webauthn.FinishRegistration(ctx.Request(), ctx.Response(), user, webauthn.WrapMap(sess))
+	// Then call FinishRegistration to register the authenticator to the user
+	h.webauthn.FinishRegistration(r, rw, user, webauthn.WrapMap(sess))
 }
 ```
 
