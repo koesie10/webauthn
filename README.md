@@ -29,10 +29,10 @@ Finally, you can create the main [`WebAuthn`](https://godoc.org/github.com/koesi
 
 ```golang
 w, err := webauthn.New(&webauthn.Config{
-	// A human-readable identifier for the relying party (i.e. your app), intended only for display.
-	RelyingPartyName:   "webauthn-demo",
-	// Storage for the authenticator.
-	AuthenticatorStore: storage,
+    // A human-readable identifier for the relying party (i.e. your app), intended only for display.
+    RelyingPartyName:   "webauthn-demo",
+    // Storage for the authenticator.
+    AuthenticatorStore: storage,
 })		
 ```
 
@@ -46,26 +46,27 @@ For example, a handler for finish registration might look like this:
 
 ```golang
 func (r *http.Request, rw http.ResponseWriter) {
-	ctx := r.Context()
-	// Get the user in some way, in this case from the context
-	user, ok := UserFromContext(ctx)
-	if !ok {
-		rw.WriteHeader(http.StatusForbidden)
-		return
-	}
+    ctx := r.Context()
 
-	// Get or create a session in some way, in this case from the context
-	sess := SessionFromContext(ctx)
+    // Get the user in some way, in this case from the context
+    user, ok := UserFromContext(ctx)
+    if !ok {
+        rw.WriteHeader(http.StatusForbidden)
+        return
+    }
 
-	// Then call FinishRegistration to register the authenticator to the user
-	h.webauthn.FinishRegistration(r, rw, user, webauthn.WrapMap(sess))
+    // Get or create a session in some way, in this case from the context
+    sess := SessionFromContext(ctx)
+
+    // Then call FinishRegistration to register the authenticator to the user
+    h.webauthn.FinishRegistration(r, rw, user, webauthn.WrapMap(sess))
 }
 ```
 
 A complete demo application using the high-level API which implements all of these interfaces and stores data in memory is available
 [here](https://github.com/koesie10/webauthn-demo).
 
-## JavaScript example
+## JavaScript examples
 
 [This class](webauthn.js) is an example that can be used to handle the registration and login phases. It can be used as follows:
 
@@ -74,19 +75,43 @@ const w = new WebAuthn();
 
 // Registration
 w.register().then(() => {
-	alert('This authenticator has been registered.');
+    alert('This authenticator has been registered.');
 }).catch(err => {
-	console.error(err)
-	alert('Failed to register: ' + err);
+    console.error(err);
+    alert('Failed to register: ' + err);
 });
 
 // Login
 w.login().then(() => {
-	alert('You have been logged in.');
+    alert('You have been logged in.');
 }).catch(err => {
-	console.error(err)
-	alert('Failed to login: ' + err);
+    console.error(err);
+    alert('Failed to login: ' + err);
 });
+```
+
+Or, with latest `async/await` paradigm:
+
+```javascript
+const w = new WebAuthn();
+
+// Registration
+try {
+    await w.register();
+    alert('This authenticator has been registered.');
+} catch (err) {
+    console.error(err)
+    alert('Failed to register: ' + err);
+}
+
+// Login
+try {
+    await w.login();
+    alert('You have been logged in.');
+} catch(err) {
+    console.error(err);
+    alert('Failed to login: ' + err);
+}
 ```
 
 ## Low-level API
