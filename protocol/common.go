@@ -210,7 +210,7 @@ const (
 	// AuthenticatorDataFlagUserPresent indicates the UP flag.
 	AuthenticatorDataFlagUserPresent = 0x001 // 0000 0001
 	// AuthenticatorDataFlagUserVerified indicates the UV flag.
-	AuthenticatorDataFlagUserVerified = 0x002 // 0000 0010
+	AuthenticatorDataFlagUserVerified = 0x004 // 0000 0100
 	// AuthenticatorDataFlagHasCredentialData indicates the AT flag.
 	AuthenticatorDataFlagHasCredentialData = 0x040 // 0100 0000
 	// AuthenticatorDataFlagHasExtension indicates the ED flag.
