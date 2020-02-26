@@ -1,16 +1,23 @@
-package protocol
+// androidsafetynet implements the Android SafetyNet (WebAuthn spec section 8.5) attestation statement format
+package androidsafetynet
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
+	"time"
 
 	"gopkg.in/square/go-jose.v2"
+
+	"github.com/koesie10/webauthn/protocol"
 )
 
+// Now is used to overwrite the time at which the certificate is verified and is just used for tests.
+var now = time.Now
+
 func init() {
-	RegisterFormat("android-safetynet", verifyAndroidSafetynet)
+	protocol.RegisterFormat("android-safetynet", verifyAndroidSafetynet)
 }
 
 type AndroidSafetyNetAttestionResponse struct {
@@ -23,57 +30,58 @@ type AndroidSafetyNetAttestionResponse struct {
 	BasicIntegrity             bool     `json:"basicIntegrity"`
 }
 
-func verifyAndroidSafetynet(a Attestation, clientDataHash []byte) error {
+func verifyAndroidSafetynet(a protocol.Attestation, clientDataHash []byte) error {
 	// Verify that response is a valid SafetyNet response of version ver.
 	rawVer, ok := a.AttStmt["ver"]
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("missing ver for android-safetynet")
+		return protocol.ErrInvalidAttestation.WithDebug("missing ver for android-safetynet")
 	}
 	ver, ok := rawVer.(string)
 	if !ok {
-		return ErrInvalidAttestation.WithDebugf("invalid ver for android-safetynet, is of invalid type %T", rawVer)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid ver for android-safetynet, is of invalid type %T", rawVer)
 	}
 
 	if ver == "" {
-		return ErrInvalidAttestation.WithDebug("invalid ver for android-safetynet")
+		return protocol.ErrInvalidAttestation.WithDebug("invalid ver for android-safetynet")
 	}
 
 	rawResponse, ok := a.AttStmt["response"]
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("missing response for android-safetynet")
+		return protocol.ErrInvalidAttestation.WithDebug("missing response for android-safetynet")
 	}
 	responseBytes, ok := rawResponse.([]byte)
 	if !ok {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet, is of invalid type %T", responseBytes)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet, is of invalid type %T", responseBytes)
 	}
 
 	response, err := jose.ParseSigned(string(responseBytes))
 	if err != nil {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err)
 	}
 
 	if len(response.Signatures) != 1 {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: more or less than 1 signature")
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: more or less than 1 signature")
 	}
 
 	// Verify that the attestation certificate is issued to the hostname "attest.android.com"
 	cert, err := response.Signatures[0].Protected.Certificates(x509.VerifyOptions{
-		DNSName: "attest.android.com",
+		DNSName:     "attest.android.com",
+		CurrentTime: now(),
 	})
 	if err != nil {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err).WithCause(err)
 	}
 	leaf := cert[0][0]
 
 	payload, err := response.Verify(leaf.PublicKey)
 	if err != nil {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err).WithCause(err)
 	}
 
 	attestationResponse := AndroidSafetyNetAttestionResponse{}
 
 	if err := json.Unmarshal(payload, &attestationResponse); err != nil {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: %v", err)
 	}
 
 	// Verify that the nonce in the response is identical to the SHA-256 hash of the concatenation of authenticatorData and clientDataHash.
@@ -81,12 +89,12 @@ func verifyAndroidSafetynet(a Attestation, clientDataHash []byte) error {
 	expectedNonce := sha256.Sum256(nonceBytes)
 
 	if !bytes.Equal(expectedNonce[:], attestationResponse.Nonce) {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: invalid nonce")
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: invalid nonce")
 	}
 
 	// Verify that the ctsProfileMatch attribute in the payload of response is true.
 	if !attestationResponse.CtsProfileMatch {
-		return ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: does not match CTS profile")
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid response for android-safetynet: does not match CTS profile")
 	}
 
 	// If successful, return attestation type Basic with the attestation trust path set to the above attestation certificate.

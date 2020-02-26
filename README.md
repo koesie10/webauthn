@@ -12,6 +12,17 @@ This project provides a low-level and a high-level API to use the [Web Authentic
 go get github.com/koesie10/webauthn
 ```
 
+## Attestation
+
+By default, this library does not support any attestation statement formats. To use the default attestation formats,
+you will need to import `github.com/koesie10/webauthn/attestation` or any of its subpackages if you would just like
+to support some attestation statement formats.
+
+Please note that the Android SafetyNet attestation statement format depends on
+[`gopkg.in/square/go-jose.v2`](https://github.com/square/go-jose), which means that this package will be imported
+when you import either `github.com/koesie10/webauthn/attestation` or
+`github.com/koesie10/webauthn/attestation/androidsafetynet`.
+
 ## High-level API
 
 The high-level API can be used with the `net/http` package and simplifies the low-level API. It is located in the `webauthn` subpackage. It is intended
@@ -42,7 +53,7 @@ intermediate registration/login data. If you use [`gorilla/sessions`](https://gi
 [`webauthn.WrapMap`](https://godoc.org/github.com/koesie10/webauthn/webauthn#WrapMap)`(session.Values)`. Read the documentation for complete information
 on what parameters need to be passed and what values are returned.
 
-For example, a handler for finish registration might look like this:
+For example, a handler for finishing the registration might look like this:
 
 ```golang
 func (r *http.Request, rw http.ResponseWriter) {

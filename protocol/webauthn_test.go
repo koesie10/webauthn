@@ -9,37 +9,6 @@ import (
 	"github.com/koesie10/webauthn/protocol"
 )
 
-func TestIsValidAttestation(t *testing.T) {
-	for i := range attestationRequests {
-		t.Run(fmt.Sprintf("Run %d", i), func(t *testing.T) {
-			r := protocol.CredentialCreationOptions{}
-			if err := json.Unmarshal([]byte(attestationRequests[i]), &r); err != nil {
-				t.Fatal(err)
-			}
-
-			b := protocol.AttestationResponse{}
-			if err := json.Unmarshal([]byte(attestationResponses[i]), &b); err != nil {
-				t.Fatal(err)
-			}
-
-			p, err := protocol.ParseAttestationResponse(b)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			d, err := protocol.IsValidAttestation(p, r.PublicKey.Challenge, "", "")
-			if err != nil {
-				e := protocol.ToWebAuthnError(err)
-				t.Fatal(fmt.Sprintf("%s, %s: %s", e.Name, e.Description, e.Debug))
-			}
-
-			if !d {
-				t.Fatal("is not valid")
-			}
-		})
-	}
-}
-
 func TestIsValidAssertion(t *testing.T) {
 	for i := range assertionRequests {
 		t.Run(fmt.Sprintf("Run %d", i), func(t *testing.T) {
@@ -84,14 +53,6 @@ func TestIsValidAssertion(t *testing.T) {
 			}
 		})
 	}
-}
-
-var attestationRequests = []string{
-	`{"publicKey":{"rp":{"name":"accountsvc"},"user":{"id":"MTAwNjg1ODU4NDE3ODI5NDc4NA==","name":"Koen Vlaswinkel","displayName":"Koen Vlaswinkel"},"pubKeyCredParams":[{"type":"public-key","alg":-7}],"timeout":10000,"attestation":"direct","challenge":"+1jQysnwaIjNU+GrwRp4PWNBMlX0i9/caRkcKd7LPj8="}}`,
-	`{"publicKey":{"rp":{"name":"webauthn-demo"},"user":{"name":"koen","id":"a29lbg==","displayName":"koen"},"challenge":"JUtlYcgpkSiFNzsThDYuOrtSVY1VeLofM+mWTRCCXqU=","pubKeyCredParams":[{"type":"public-key","alg":-7}],"timeout":30000,"authenticatorSelection":{"requireResidentKey":false},"attestation":"direct"}}`,
-	`{"publicKey":{"rp":{"name":"webauthn-demo"},"user":{"name":"koen","id":"a29lbg==","displayName":"koen"},"challenge":"2HzAlPIGskbn53hBJZeH3kZ6XfcHWMnzbATVG/FSgkI=","pubKeyCredParams":[{"type":"public-key","alg":-7}],"timeout":30000,"authenticatorSelection":{"requireResidentKey":false},"attestation":"direct"}}`,
-	// Android SafetyNet
-	`{"publicKey":{"rp":{"name":"webauthn-demo"},"user":{"name":"Bewus","id":"QmV3dXM=","displayName":"koen"},"challenge":"d3cY1I6n1ar6gLpDEhTi5nBgP1xwIGsb6HM/NR8PK1o=","pubKeyCredParams":[{"type":"public-key","alg":-7}],"timeout":30000,"authenticatorSelection":{"requireResidentKey":false},"attestation":"direct"}}`,
 }
 
 var attestationResponses = []string{

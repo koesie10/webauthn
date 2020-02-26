@@ -68,6 +68,8 @@ type Error struct {
 	Code int `json:"status_code,omitempty"`
 	// Debug contains debug information about this error that should not be shown to the user.
 	Debug string `json:"debug,omitempty"`
+	// Cause contains the error that caused this error, if available
+	Cause error `json:"-"`
 }
 
 // ToWebAuthnError converts any error into the *Error type. If that is not possible, it will return an *Error
@@ -112,5 +114,11 @@ func (e *Error) WithDebugf(debug string, args ...interface{}) *Error {
 func (e *Error) WithDebug(debug string) *Error {
 	err := *e
 	err.Debug = debug
+	return &err
+}
+
+func (e *Error) WithCause(cause error) *Error {
+	err := *e
+	err.Cause = cause
 	return &err
 }

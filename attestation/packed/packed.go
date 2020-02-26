@@ -1,37 +1,40 @@
-package protocol
+// packed implements the Packed (WebAuthn spec section 8.2) attestation statement format
+package packed
 
 import (
 	"bytes"
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
+
+	"github.com/koesie10/webauthn/protocol"
 )
 
 func init() {
-	RegisterFormat("packed", verifyPacked)
+	protocol.RegisterFormat("packed", verifyPacked)
 }
 
 var extensionIDFIDOGenCAAAGUID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 45724, 1, 1, 4}
 
-func verifyPacked(a Attestation, clientDataHash []byte) error {
+func verifyPacked(a protocol.Attestation, clientDataHash []byte) error {
 	rawAlg, ok := a.AttStmt["alg"]
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("missing alg for packed")
+		return protocol.ErrInvalidAttestation.WithDebug("missing alg for packed")
 	}
 	algInt, ok := rawAlg.(int64)
 	if !ok {
-		return ErrInvalidAttestation.WithDebugf("invalid alg for packed, is of invalid type %T", rawAlg)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid alg for packed, is of invalid type %T", rawAlg)
 	}
 
-	alg := COSEAlgorithmIdentifier(algInt)
+	alg := protocol.COSEAlgorithmIdentifier(algInt)
 
 	rawSig, ok := a.AttStmt["sig"]
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("missing sig for packed")
+		return protocol.ErrInvalidAttestation.WithDebug("missing sig for packed")
 	}
 	sig, ok := rawSig.([]byte)
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("invalid sig for packed")
+		return protocol.ErrInvalidAttestation.WithDebug("invalid sig for packed")
 	}
 
 	// 2. If x5c is present, this indicates that the attestation type is not ECDAA. In this case:
@@ -48,22 +51,22 @@ func verifyPacked(a Attestation, clientDataHash []byte) error {
 	return fmt.Errorf("unsupported format self attestation")
 }
 
-func verifyPackedBasic(a Attestation, clientDataHash []byte, alg COSEAlgorithmIdentifier, sig []byte) error {
+func verifyPackedBasic(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
 	x5c, ok := a.AttStmt["x5c"].([]interface{})
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("invalid x5c for packed")
+		return protocol.ErrInvalidAttestation.WithDebug("invalid x5c for packed")
 	}
 
 	// let attCert be that element
 	attestnCert, ok := x5c[0].([]byte)
 	if !ok {
-		return ErrInvalidAttestation.WithDebug("invalid x5c for packed")
+		return protocol.ErrInvalidAttestation.WithDebug("invalid x5c for packed")
 	}
 
 	// Let certificate public key be the public key conveyed by attCert
 	cert, err := x509.ParseCertificate(attestnCert)
 	if err != nil {
-		return ErrInvalidAttestation.WithDebugf("invalid x5c for packed: %v", err)
+		return protocol.ErrInvalidAttestation.WithDebugf("invalid x5c for packed: %v", err)
 	}
 
 	// 2.1 Verify that sig is a valid signature over the concatenation of authenticatorData and clientDataHash using
@@ -73,7 +76,7 @@ func verifyPackedBasic(a Attestation, clientDataHash []byte, alg COSEAlgorithmId
 		// Fallback to ECDSAWithSA256 if signature algorithm is incorret, as is the case with Yubico's keys
 		err = cert.CheckSignature(x509.ECDSAWithSHA256, signedBytes, sig)
 		if err != nil {
-			return ErrInvalidAttestation.WithDebugf("invalid signature for packed: %v", err)
+			return protocol.ErrInvalidAttestation.WithDebugf("invalid signature for packed: %v", err)
 		}
 	}
 
@@ -81,12 +84,12 @@ func verifyPackedBasic(a Attestation, clientDataHash []byte, alg COSEAlgorithmId
 
 	// Version MUST be set to 3 (which is indicated by an ASN.1 INTEGER with value 2).
 	if cert.Version != 3 {
-		return ErrInvalidAttestation.WithDebug("invalid version for certificate")
+		return protocol.ErrInvalidAttestation.WithDebug("invalid version for certificate")
 	}
 
 	// The Basic Constraints extension MUST have the CA component set to false.
 	if cert.IsCA {
-		return ErrInvalidAttestation.WithDebug("CA is set for certificate")
+		return protocol.ErrInvalidAttestation.WithDebug("CA is set for certificate")
 	}
 
 	var aaguidValue []byte
@@ -98,7 +101,7 @@ func verifyPackedBasic(a Attestation, clientDataHash []byte, alg COSEAlgorithmId
 		if ext.Id.Equal(extensionIDFIDOGenCAAAGUID) {
 			// The extension MUST NOT be marked as critical.
 			if ext.Critical {
-				return ErrInvalidAttestation.WithDebugf("extension id-fido-gen-ce-aaguid is present, but is marked as critical")
+				return protocol.ErrInvalidAttestation.WithDebugf("extension id-fido-gen-ce-aaguid is present, but is marked as critical")
 			}
 			aaguidValue = ext.Value
 		}
@@ -111,11 +114,11 @@ func verifyPackedBasic(a Attestation, clientDataHash []byte, alg COSEAlgorithmId
 		// be wrapped in two OCTET STRINGS to be valid
 		var aaguid []byte
 		if _, err := asn1.Unmarshal(aaguidValue, &aaguid); err != nil {
-			return ErrInvalidAttestation.WithDebugf("invalid AAGUID: %v", err)
+			return protocol.ErrInvalidAttestation.WithDebugf("invalid AAGUID: %v", err)
 		}
 
 		if !bytes.Equal(a.AuthData.AttestedCredentialData.AAGUID, aaguid) {
-			return ErrInvalidAttestation.WithDebugf("invalid AAGUID")
+			return protocol.ErrInvalidAttestation.WithDebugf("invalid AAGUID")
 		}
 
 	}
@@ -124,6 +127,6 @@ func verifyPackedBasic(a Attestation, clientDataHash []byte, alg COSEAlgorithmId
 	return nil
 }
 
-func verifyPackedECDAA(a Attestation, clientDataHash []byte, alg COSEAlgorithmIdentifier, sig []byte) error {
-	return ErrInvalidAttestation.WithDebugf("unsupported packed format ECDAA")
+func verifyPackedECDAA(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
+	return protocol.ErrInvalidAttestation.WithDebugf("unsupported packed format ECDAA")
 }
