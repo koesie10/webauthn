@@ -3,9 +3,12 @@ package packed
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
-	"fmt"
+	"math/big"
 
 	"github.com/koesie10/webauthn/protocol"
 )
@@ -39,19 +42,19 @@ func verifyPacked(a protocol.Attestation, clientDataHash []byte) error {
 
 	// 2. If x5c is present, this indicates that the attestation type is not ECDAA. In this case:
 	if _, ok := a.AttStmt["x5c"]; ok {
-		return verifyPackedBasic(a, clientDataHash, alg, sig)
+		return verifyBasic(a, clientDataHash, alg, sig)
 	}
 
 	// 3. If ecdaaKeyId is present, then the attestation type is ECDAA. In this case:
 	if _, ok := a.AttStmt["ecdaaKeyId"]; ok {
-		return verifyPackedECDAA(a, clientDataHash, alg, sig)
+		return verifyECDAA(a, clientDataHash, alg, sig)
 	}
 
 	// 4. If neither x5c nor ecdaaKeyId is present, self attestation is in use.
-	return fmt.Errorf("unsupported format self attestation")
+	return verifySelf(a, clientDataHash, alg, sig)
 }
 
-func verifyPackedBasic(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
+func verifyBasic(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
 	x5c, ok := a.AttStmt["x5c"].([]interface{})
 	if !ok {
 		return protocol.ErrInvalidAttestation.WithDebug("invalid x5c for packed")
@@ -127,6 +130,40 @@ func verifyPackedBasic(a protocol.Attestation, clientDataHash []byte, alg protoc
 	return nil
 }
 
-func verifyPackedECDAA(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
+func verifyECDAA(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
 	return protocol.ErrInvalidAttestation.WithDebugf("unsupported packed format ECDAA")
+}
+
+func verifySelf(a protocol.Attestation, clientDataHash []byte, alg protocol.COSEAlgorithmIdentifier, sig []byte) error {
+	// 4.1 Validate that alg matches the algorithm of the credentialPublicKey in authenticatorData.
+
+	// 4.2 Verify that sig is a valid signature over the concatenation of authenticatorData and clientDataHash using
+	// the credential public key with alg.
+	signedBytes := append(a.AuthData.Raw, clientDataHash...)
+
+	switch v := a.AuthData.AttestedCredentialData.COSEKey.(type) {
+	case *ecdsa.PublicKey:
+		// Right now, only EC256 is supported
+		if alg != protocol.ES256 || v.Curve != elliptic.P256() {
+			return protocol.ErrInvalidAttestation.WithDebugf("unsupported packed self attestation ECDSA key curve %s", v.Curve.Params().Name)
+		}
+
+		// 6.4.5.1 Signature Formats for Packed Attestation ES256
+		signature := make([]*big.Int, 2)
+		if rest, err := asn1.Unmarshal(sig, signature); err != nil {
+			return protocol.ErrInvalidAttestation.WithDebugf("invalid ECDSA signature: %v", err).WithCause(err)
+		} else if rest != nil {
+			return protocol.ErrInvalidAttestation.WithDebugf("invalid ECDSA signature: too much data")
+		}
+
+		hash := sha256.Sum256(signedBytes)
+		if !ecdsa.Verify(v, hash[:], signature[0], signature[1]) {
+			return protocol.ErrInvalidAttestation.WithDebugf("invalid signature for packed")
+		}
+	default:
+		return protocol.ErrInvalidAttestation.WithDebugf("unsupported packed self attestation public key type %T", a.AuthData.AttestedCredentialData.COSEKey)
+	}
+
+	// If successful, return implementation-specific values representing attestation type Self and an empty attestation trust path.
+	return nil
 }
